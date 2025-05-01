@@ -100,7 +100,7 @@ class _LoginState extends State<Login> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Welcome',
+                  '오늘의 뉴스',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.black,
@@ -110,7 +110,7 @@ class _LoginState extends State<Login> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Sign in to continue',
+                  '시작하려면 로그인하세요',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF868E96),
@@ -122,7 +122,7 @@ class _LoginState extends State<Login> {
                   controller: _emailController,
                   style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                    labelText: '아이디',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
@@ -132,7 +132,7 @@ class _LoginState extends State<Login> {
                   obscureText: true,
                   style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: '비밀번호',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
@@ -144,7 +144,7 @@ class _LoginState extends State<Login> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: const Text(
-                    'Sign In',
+                    '로그인',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -152,7 +152,7 @@ class _LoginState extends State<Login> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Don\'t have an account?',
+                    const Text('아직 아이디가 없나요?',
                     style: TextStyle(color: Color(0xFF868E96), fontSize: 14),),
                     TextButton(
                       onPressed: () {
@@ -162,7 +162,7 @@ class _LoginState extends State<Login> {
                         );
                       },
                       child: const Text(
-                        'Register',
+                        '회원가입',
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                     ),
@@ -192,10 +192,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _createAccount() {
     final userData = {
-      "fullName": _fullNameController.text,
-      "email": _emailController.text,
-      "password": _passwordController.text,
-      "confirmPassword": _confirmPasswordController.text,
+      "이름": _fullNameController.text,
+      "아이디": _emailController.text,
+      "비밀번호": _passwordController.text,
+      "비밀번호 재입력": _confirmPasswordController.text,
     };
 
     // TODO: 이 데이터 서버로 보내기
@@ -230,7 +230,7 @@ class _RegisterPageState extends State<RegisterPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Create Account',
+                  '회원가입',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
@@ -238,7 +238,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Sign up to get started',
+                  '아이디를 만들고 시작하세요!',
                   style: TextStyle(
                     color: Color(0xFF868E96),
                     fontSize: 16,
@@ -247,38 +247,38 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 24),
                 TextField(
                   controller: _fullNameController,
-                  decoration: const InputDecoration(labelText: 'Full Name'),
+                  decoration: const InputDecoration(labelText: '이름'),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: const InputDecoration(labelText: '아이디'),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: const InputDecoration(labelText: '비밀번호'),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _confirmPasswordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Confirm Password'),
+                  decoration: const InputDecoration(labelText: '비밀번호 재입력'),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _createAccount,
-                    child: const Text('Create Account'),
+                    child: const Text('계정 생성'),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Already have an account?'),
+                    const Text('이미 아이디가 있으신가요?'),
                     TextButton(
                       onPressed: () {
                         Navigator.pushReplacement(
@@ -287,7 +287,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         );
                       },
                       child: const Text(
-                        'Sign In',
+                        '로그인',
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                     ),

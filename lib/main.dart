@@ -191,7 +191,17 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
 
   void _createAccount() {
-    final userData = {
+    if (_fullNameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모든 필드를 입력해주세요.')),
+      );
+      return;
+    }
+    else {
+      final userData = {
       "이름": _fullNameController.text,
       "아이디": _emailController.text,
       "비밀번호": _passwordController.text,
@@ -204,6 +214,11 @@ class _RegisterPageState extends State<RegisterPage> {
       context,
       MaterialPageRoute(builder: (context) => const Login()),
     );
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('계정이 성공적으로 생성되었습니다.')),
+      );
+      return;
   }
 
   @override

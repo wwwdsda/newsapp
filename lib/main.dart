@@ -7,11 +7,11 @@ import 'dart:convert';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
-  runApp(const FigmaToCodeApp());
+  runApp(const newsapp());
 }
 
-class FigmaToCodeApp extends StatelessWidget {
-  const FigmaToCodeApp({Key? key}) : super(key: key);
+class newsapp extends StatelessWidget {
+  const newsapp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

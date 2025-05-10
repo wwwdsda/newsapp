@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-//import 'package:http/http.dart' as http;
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 void main() async {
@@ -52,25 +52,47 @@ class _LoginState extends State<Login> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  void _signIn(BuildContext context) {
-    String email = _emailController.text;
-    String password = _passwordController.text;
+  void _signIn(BuildContext context) async {
+  final id = _emailController.text;
+  final password = _passwordController.text;
 
-    print('Email: $email, Password: $password');
+  final url = Uri.http('127.0.0.1:8080', '/login');
+  final client = http.Client(); 
 
-    // TODO: 실제 서버에서 아이디 비밀번호 확인하기
+try {
+    final response = await client.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'id': id, 'password': password}),
+    );
 
-    if (email == '' && password == '') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['message'] ?? '로그인 실패')),
+        );
+      }
     } else {
+      final data = jsonDecode(response.body);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('아이디 또는 비밀번호가 올바르지 않습니다.')),
+        SnackBar(content: Text(data['message'] ?? '로그인 실패')),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('서버 연결 실패: $e')),
+    );
+  } finally {
+    client.close();
   }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +198,7 @@ class _LoginState extends State<Login> {
     );
   }
 }
-
+// 회원가입
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -190,36 +212,55 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  void _createAccount() {
-    if (_fullNameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty ||
-        _confirmPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('모든 필드를 입력해주세요.')),
-      );
-      return;
-    }
-    else {
-      final userData = {
+Future<void> _createAccount() async {
+  if (_fullNameController.text.isEmpty ||
+      _emailController.text.isEmpty ||
+      _passwordController.text.isEmpty ||
+      _confirmPasswordController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('모든 필드를 입력해주세요.')),
+    );
+    return;
+  } else if (_passwordController.text != _confirmPasswordController.text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('비밀번호가 일치하지 않습니다.')),
+    );
+    return;
+  } else {
+    final userData = {
       "이름": _fullNameController.text,
       "아이디": _emailController.text,
       "비밀번호": _passwordController.text,
-      "비밀번호 재입력": _confirmPasswordController.text,
     };
 
-    // TODO: 이 데이터 서버로 보내기
-    print("Create Account: $userData");
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const Login()),
-    );
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('계정이 성공적으로 생성되었습니다.')),
+    final url = Uri.http('127.0.0.1:8080', '/register'); 
+    final headers = {'Content-Type': 'application/json'};
+    final body = jsonEncode(userData);
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+
+      if (response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('계정이 성공적으로 생성되었습니다.')),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const Login()),
+        );
+      } else {
+        final responseData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(responseData['message'] ?? '회원가입에 실패했습니다.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('서버 연결에 실패했습니다: $e')),
       );
-      return;
+    }
   }
+}
 
   @override
   Widget build(BuildContext context) {

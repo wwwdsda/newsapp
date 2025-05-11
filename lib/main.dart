@@ -599,61 +599,82 @@ class _HomeTabState extends State<HomeTab> {
     _fetchNewsForDate(_currentDate);
     _fetchScrappedNews();
   }
+Future<void> _fetchNewsForDate(DateTime date) async {
+  setState(() {
+    _newsBlocks = [];
+  }); 
+  final saveUrl = Uri.http('127.0.0.1:8080', '/news_save');
+  final client = http.Client();
 
-  Future<void> _fetchNewsForDate(DateTime date) async {
-    setState(() {
-      _newsBlocks = [];
-    });
-
-    final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-    final url = Uri.http('127.0.0.1:8080', '/news', {'date': formattedDate});
-
-    try {
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data['success'] == true && data['news'] != null) {
-          final Map<String, dynamic> newsMap = Map<String, dynamic>.from(
-            data['news'],
-          );
-          final List<NewsBlockData> blocks = [];
-
-          for (final entry in newsMap.entries) {
-            final String category = entry.key;
-            final List<dynamic> items = entry.value;
-
-            final List<NewsItem> newsItems =
-                items.map((item) {
-                  final String title = item['title'];
-                  final String summary = item['summary'];
-                  final dynamic isScrappedValue = item['isScrapped'];
-                  final bool isScrapped = isScrappedValue == 1;
-
-                  return NewsItem(
-                    id: '${category}_$title\_$formattedDate',
-                    title: title,
-                    summary: summary,
-                    date: date,
-                    isScrapped: isScrapped,
-                  );
-                }).toList();
-
-            blocks.add(NewsBlockData(title: category, newsItems: newsItems));
-          }
-
-          setState(() {
-            _newsBlocks = blocks;
-          });
-        } 
-      } 
-    } catch (e) {
-      
+  try {
+    final response = await client.get(saveUrl);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] != true) {
+        print('뉴스 데이터 저장 실패: ${data['message']}');
+      }
+    } else {
+      print('서버 오류: ${response.statusCode}');
     }
+  } catch (e) {
+    print('에러 발생(news_save): $e');
+  } finally {
+    client.close();
   }
 
-  Future<void> _fetchScrappedNews() async {
+  final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+  final newsUrl = Uri.http('127.0.0.1:8080', '/news', {'date': formattedDate});
+
+  try {
+    final response = await http.get(newsUrl);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true && data['news'] != null) {
+        final Map<String, dynamic> newsMap = Map<String, dynamic>.from(data['news']);
+        final List<NewsBlockData> blocks = [];
+
+        for (final entry in newsMap.entries) {
+          final String category = entry.key;
+          final List<dynamic> items = entry.value;
+
+          final List<NewsItem> newsItems = items.map((item) {
+            final String title = item['title'];
+            final String summary = item['summary'];
+            final String time = item['time'];
+            final dynamic isScrappedValue = item['isScrapped'];
+            final bool isScrapped = isScrappedValue == 1 || isScrappedValue == true;
+
+            final timeParts = time.split(':');
+            final String timeHM = timeParts.length >= 2 ? '${timeParts[0]}:${timeParts[1]}' : time;
+
+            return NewsItem(
+              id: '${category}_$title\_$formattedDate',
+              title: title,
+              summary: summary,
+              date: date,
+              isScrapped: isScrapped,
+              time: timeHM,
+            );
+          }).toList();
+
+          blocks.add(NewsBlockData(title: category, newsItems: newsItems));
+        }
+
+        setState(() {
+          _newsBlocks = blocks;
+        });
+      }
+    } else {
+      print('서버 오류(news): ${response.statusCode}');
+    }
+  } catch (e) {
+    print('에러 발생(news): $e');
+  }
+}
+
+Future<void> _fetchScrappedNews() async {
     // TODO: 서버에서 스크랩된 뉴스 ID 가져오기
 
     // 임시 데이터
@@ -859,7 +880,7 @@ class NewsItemTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      DateFormat('HH:mm').format(newsItem.date),
+                      newsItem.time,
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
@@ -906,6 +927,7 @@ class NewsItem {
   final String id;
   final String title;
   final String summary;
+  final String time;
   final DateTime date;
   final bool isScrapped;
 
@@ -915,12 +937,14 @@ class NewsItem {
     required this.summary,
     required this.date,
     required this.isScrapped,
+    required this.time,
   });
 
   NewsItem copyWith({
     String? id,
     String? title,
     String? summary,
+    String? time,
     DateTime? date,
     bool? isScrapped,
   }) {
@@ -928,6 +952,7 @@ class NewsItem {
       id: id ?? this.id,
       title: title ?? this.title,
       summary: summary ?? this.summary,
+      time: time ?? this.time,
       date: date ?? this.date,
       isScrapped: isScrapped ?? this.isScrapped,
     );

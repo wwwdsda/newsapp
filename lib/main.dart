@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 Future<void> _newssave(String newsurl) async {
-  final saveUrl = Uri.http('127.0.0.1:8080', newsurl);
+  final saveUrl = Uri.http('10.0.2.2:8080', newsurl);
   final client = http.Client();
   try {
     final response = await client.get(saveUrl);
@@ -28,7 +28,7 @@ void _refreshData() async {
   await _newssave('/korea_news_save');
   await _newssave('/world_news_save');
   await _newssave('/economy_news_save');
-  final filter = Uri.http('127.0.0.1:8080', '/ai_filter');
+  final filter = Uri.http('10.0.2.2:8080', '/ai_filter');
   final response = await http.get(filter);
 }
 
@@ -70,7 +70,7 @@ class _LoginState extends State<Login> {
     final id = _emailController.text;
     final password = _passwordController.text;
 
-    final url = Uri.http('127.0.0.1:8080', '/login');
+    final url = Uri.http('10.0.2.2:8080', '/login');
     final client = http.Client();
 
     try {
@@ -295,7 +295,7 @@ class _RegisterPageState extends State<RegisterPage> {
         "비밀번호": _passwordController.text,
       };
 
-      final url = Uri.http('127.0.0.1:8080', '/register');
+      final url = Uri.http('10.0.2.2:8080', '/register');
       final headers = {'Content-Type': 'application/json'};
       final body = jsonEncode(userData);
 
@@ -619,13 +619,12 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   DateTime _currentDate = DateTime.now();
   List<NewsBlockData> _newsBlocks = [];
-  Set<String> _scrappedNewsIds = {};
+  Set<String> _scrappedNews = {};
 
   @override
   void initState() {
     super.initState();
     _fetchNewsForDate(_currentDate);
-    _fetchScrappedNews();
   }
 
   Future<void> _fetchNewsForDate(DateTime date) async {
@@ -634,7 +633,7 @@ class _HomeTabState extends State<HomeTab> {
     });
 
     final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-    final newsUrl = Uri.http('127.0.0.1:8080', '/news', {
+    final newsUrl = Uri.http('10.0.2.2:8080', '/news', {
       'date': formattedDate,
     });
 
@@ -671,7 +670,7 @@ class _HomeTabState extends State<HomeTab> {
                           : time;
 
                   return NewsItem(
-                    id: '${category}_$title\_$formattedDate',
+                    category: category,
                     title: title,
                     summary: summary,
                     date: date,
@@ -696,52 +695,43 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
-  Future<void> _fetchScrappedNews() async {
-    // TODO: 서버에서 스크랩된 뉴스 ID 가져오기
 
-    // 임시 데이터
-    await Future.delayed(const Duration(milliseconds: 500));
-    setState(() {
-      _scrappedNewsIds = {'pol2-2025-04-24', 'econ1-2025-04-24'};
-      // 초기 뉴스 데이터에 스크랩 상태 반영
-      _newsBlocks =
-          _newsBlocks.map((block) {
-            return block.copyWith(
-              newsItems:
-                  block.newsItems.map((item) {
-                    return item.copyWith(
-                      isScrapped: _scrappedNewsIds.contains(item.id),
-                    );
-                  }).toList(),
-            );
+
+
+Future<void> _toggleScrap(NewsItem newsItem) async {
+  final newsUrl = Uri.http('10.0.2.2:8080', '/scrap');
+  final body = jsonEncode({
+    'date': DateFormat('yyyy-MM-dd').format(newsItem.date),
+    'category': newsItem.category,
+    'title': newsItem.title,
+  });
+
+  try {
+    final response = await http.post(
+      newsUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _newsBlocks = _newsBlocks.map((block) {
+          if (block.title != newsItem.category) return block;
+          final updatedItems = block.newsItems.map((item) {
+            if (item.title != newsItem.title) return item;
+            return item.copyWith(isScrapped: !item.isScrapped);
           }).toList();
-    });
+          return block.copyWith(newsItems: updatedItems);
+        }).toList();
+      });
+    } else {
+    }
+  } catch (e) {
+    print('에러 발생(news): $e');
   }
+}
 
-  Future<void> _toggleScrap(NewsItem newsItem) async {
-    setState(() {
-      if (_scrappedNewsIds.contains(newsItem.id)) {
-        _scrappedNewsIds.remove(newsItem.id);
-      } else {
-        _scrappedNewsIds.add(newsItem.id);
-      }
 
-      _newsBlocks =
-          _newsBlocks.map((block) {
-            return block.copyWith(
-              newsItems:
-                  block.newsItems.map((item) {
-                    if (item.id == newsItem.id) {
-                      return item.copyWith(
-                        isScrapped: _scrappedNewsIds.contains(item.id),
-                      );
-                    }
-                    return item;
-                  }).toList(),
-            );
-          }).toList();
-    });
-  }
 
   void _changeDate(int amount) {
     final newDate = _currentDate.add(Duration(days: amount));
@@ -812,7 +802,7 @@ class _HomeTabState extends State<HomeTab> {
                   if (validNewsItems.isNotEmpty) {
                     return NewsBlock(
                       newsBlock: newsBlock.copyWith(newsItems: validNewsItems),
-                      onToggleScrap: _toggleScrap,
+                      onToggleScrap: (newsItem) => _toggleScrap(newsItem),
                     );
                   } else {
                     return const SizedBox.shrink();
@@ -827,7 +817,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 }
 
-class NewsBlock extends StatelessWidget {
+class NewsBlock extends StatefulWidget {
   const NewsBlock({
     Key? key,
     required this.newsBlock,
@@ -836,6 +826,13 @@ class NewsBlock extends StatelessWidget {
 
   final NewsBlockData newsBlock;
   final Function(NewsItem) onToggleScrap;
+
+  @override
+  State<NewsBlock> createState() => _NewsBlockState();
+}
+
+class _NewsBlockState extends State<NewsBlock> {
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -849,18 +846,38 @@ class NewsBlock extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 13.0, top: 8.0, right: 8.0),
-            child: Text(
-              newsBlock.title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.newsBlock.title,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                IconButton(
+                  icon: Icon(_isExpanded ? Icons.arrow_drop_up : Icons.arrow_drop_down),
+                  onPressed: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
-          ...newsBlock.newsItems
-              .map(
-                (item) =>
-                    NewsItemTile(newsItem: item, onToggleScrap: onToggleScrap),
-              )
-              .toList(),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _isExpanded
+                  ? widget.newsBlock.newsItems.map(
+                      (item) => NewsItemTile(newsItem: item, onToggleScrap: widget.onToggleScrap),
+                    ).toList()
+                  : widget.newsBlock.newsItems.take(3).map(
+                      (item) => NewsItemTile(newsItem: item, onToggleScrap: widget.onToggleScrap),
+                    ).toList(),
+            ),
+          ),
         ],
       ),
     );
@@ -921,7 +938,7 @@ class NewsItemTile extends StatelessWidget {
                 icon: Icon(
                   newsItem.isScrapped ? Icons.bookmark : Icons.bookmark_border,
                 ),
-                onPressed: () => onToggleScrap(newsItem),
+                onPressed: () => {onToggleScrap(newsItem)},
               ),
             ],
           ),
@@ -955,7 +972,7 @@ class NewsBlockData {
 }
 
 class NewsItem {
-  final String id;
+  final String category;
   final String title;
   final String summary;
   final String time;
@@ -964,7 +981,7 @@ class NewsItem {
   final bool isValid;
 
   NewsItem({
-    required this.id,
+    required this.category,
     required this.title,
     required this.summary,
     required this.date,
@@ -974,7 +991,7 @@ class NewsItem {
   });
 
   NewsItem copyWith({
-    String? id,
+    String? category,
     String? title,
     String? summary,
     String? time,
@@ -983,7 +1000,7 @@ class NewsItem {
     bool? isValid,
   }) {
     return NewsItem(
-      id: id ?? this.id,
+      category: category ?? this.category,
       title: title ?? this.title,
       summary: summary ?? this.summary,
       time: time ?? this.time,

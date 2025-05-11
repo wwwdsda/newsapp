@@ -4,9 +4,38 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+Future<void> _newssave(String newsurl) async {
+  final saveUrl = Uri.http('127.0.0.1:8080', newsurl);
+  final client = http.Client();
+  try {
+    final response = await client.get(saveUrl);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] != true) {
+        print('뉴스 데이터 저장 실패: ${data['message']}');
+      }
+    } else {
+      print('서버 오류: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('에러 발생(news_save): $e');
+  } finally {
+    client.close();
+  }
+}
+
+void _refreshData() async {
+  await _newssave('/korea_news_save');
+  await _newssave('/world_news_save');
+  await _newssave('/economy_news_save');
+  final filter = Uri.http('127.0.0.1:8080', '/ai_filter');
+  final response = await http.get(filter);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
+  _refreshData();
   runApp(const MyApp());
 }
 
@@ -513,7 +542,6 @@ class HomeScreen extends StatefulWidget {
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
-  
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -599,82 +627,76 @@ class _HomeTabState extends State<HomeTab> {
     _fetchNewsForDate(_currentDate);
     _fetchScrappedNews();
   }
-Future<void> _fetchNewsForDate(DateTime date) async {
-  setState(() {
-    _newsBlocks = [];
-  }); 
-  final saveUrl = Uri.http('127.0.0.1:8080', '/news_save');
-  final client = http.Client();
 
-  try {
-    final response = await client.get(saveUrl);
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['success'] != true) {
-        print('뉴스 데이터 저장 실패: ${data['message']}');
-      }
-    } else {
-      print('서버 오류: ${response.statusCode}');
-    }
-  } catch (e) {
-    print('에러 발생(news_save): $e');
-  } finally {
-    client.close();
-  }
+  Future<void> _fetchNewsForDate(DateTime date) async {
+    setState(() {
+      _newsBlocks = [];
+    });
 
-  final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-  final newsUrl = Uri.http('127.0.0.1:8080', '/news', {'date': formattedDate});
+    final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+    final newsUrl = Uri.http('127.0.0.1:8080', '/news', {
+      'date': formattedDate,
+    });
 
-  try {
-    final response = await http.get(newsUrl);
+    try {
+      final response = await http.get(newsUrl);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
 
-      if (data['success'] == true && data['news'] != null) {
-        final Map<String, dynamic> newsMap = Map<String, dynamic>.from(data['news']);
-        final List<NewsBlockData> blocks = [];
+        if (data['success'] == true && data['news'] != null) {
+          final Map<String, dynamic> newsMap = Map<String, dynamic>.from(
+            data['news'],
+          );
+          final List<NewsBlockData> blocks = [];
 
-        for (final entry in newsMap.entries) {
-          final String category = entry.key;
-          final List<dynamic> items = entry.value;
+          for (final entry in newsMap.entries) {
+            final String category = entry.key;
+            final List<dynamic> items = entry.value;
 
-          final List<NewsItem> newsItems = items.map((item) {
-            final String title = item['title'];
-            final String summary = item['summary'];
-            final String time = item['time'];
-            final dynamic isScrappedValue = item['isScrapped'];
-            final bool isScrapped = isScrappedValue == 1 || isScrappedValue == true;
+            final List<NewsItem> newsItems =
+                items.map((item) {
+                  final String title = item['title'];
+                  final String summary = item['summary'];
+                  final String time = item['time'];
+                  final bool isValid = item['isValid'];
+                  final dynamic isScrappedValue = item['isScrapped'];
+                  final bool isScrapped =
+                      isScrappedValue == 1 || isScrappedValue == true;
 
-            final timeParts = time.split(':');
-            final String timeHM = timeParts.length >= 2 ? '${timeParts[0]}:${timeParts[1]}' : time;
+                  final timeParts = time.split(':');
+                  final String timeHM =
+                      timeParts.length >= 2
+                          ? '${timeParts[0]}:${timeParts[1]}'
+                          : time;
 
-            return NewsItem(
-              id: '${category}_$title\_$formattedDate',
-              title: title,
-              summary: summary,
-              date: date,
-              isScrapped: isScrapped,
-              time: timeHM,
-            );
-          }).toList();
+                  return NewsItem(
+                    id: '${category}_$title\_$formattedDate',
+                    title: title,
+                    summary: summary,
+                    date: date,
+                    isScrapped: isScrapped,
+                    isValid: isValid,
+                    time: timeHM,
+                  );
+                }).toList();
 
-          blocks.add(NewsBlockData(title: category, newsItems: newsItems));
+            blocks.add(NewsBlockData(title: category, newsItems: newsItems));
+          }
+
+          setState(() {
+            _newsBlocks = blocks;
+          });
         }
-
-        setState(() {
-          _newsBlocks = blocks;
-        });
+      } else {
+        print('서버 오류(news): ${response.statusCode}');
       }
-    } else {
-      print('서버 오류(news): ${response.statusCode}');
+    } catch (e) {
+      print('에러 발생(news): $e');
     }
-  } catch (e) {
-    print('에러 발생(news): $e');
   }
-}
 
-Future<void> _fetchScrappedNews() async {
+  Future<void> _fetchScrappedNews() async {
     // TODO: 서버에서 스크랩된 뉴스 ID 가져오기
 
     // 임시 데이터
@@ -696,27 +718,30 @@ Future<void> _fetchScrappedNews() async {
     });
   }
 
-Future<void> _toggleScrap(NewsItem newsItem) async {
-  setState(() {
-    if (_scrappedNewsIds.contains(newsItem.id)) {
-      _scrappedNewsIds.remove(newsItem.id);
-    } else {
-      _scrappedNewsIds.add(newsItem.id);
-    }
+  Future<void> _toggleScrap(NewsItem newsItem) async {
+    setState(() {
+      if (_scrappedNewsIds.contains(newsItem.id)) {
+        _scrappedNewsIds.remove(newsItem.id);
+      } else {
+        _scrappedNewsIds.add(newsItem.id);
+      }
 
-    _newsBlocks = _newsBlocks.map((block) {
-      return block.copyWith(
-        newsItems: block.newsItems.map((item) {
-          if (item.id == newsItem.id) {
-            return item.copyWith(isScrapped: _scrappedNewsIds.contains(item.id));
-          }
-          return item;
-        }).toList(),
-      );
-    }).toList();
-  });
-}
-
+      _newsBlocks =
+          _newsBlocks.map((block) {
+            return block.copyWith(
+              newsItems:
+                  block.newsItems.map((item) {
+                    if (item.id == newsItem.id) {
+                      return item.copyWith(
+                        isScrapped: _scrappedNewsIds.contains(item.id),
+                      );
+                    }
+                    return item;
+                  }).toList(),
+            );
+          }).toList();
+    });
+  }
 
   void _changeDate(int amount) {
     final newDate = _currentDate.add(Duration(days: amount));
@@ -727,10 +752,6 @@ Future<void> _toggleScrap(NewsItem newsItem) async {
     setState(() {
       _currentDate = newDate;
     });
-    _fetchNewsForDate(_currentDate);
-  }
-
-  void _refreshData() {
     _fetchNewsForDate(_currentDate);
   }
 
@@ -763,7 +784,10 @@ Future<void> _toggleScrap(NewsItem newsItem) async {
         centerTitle: true,
         leading: IconButton(icon: const Icon(Icons.menu), onPressed: _openMenu),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: () {
+            _refreshData();
+            _fetchNewsForDate(_currentDate);
+          }),
         ],
       ),
       body: Column(
@@ -772,6 +796,7 @@ Future<void> _toggleScrap(NewsItem newsItem) async {
             child: RefreshIndicator(
               onRefresh: () async {
                 _refreshData();
+                _fetchNewsForDate(_currentDate);
               },
               child: ListView.separated(
                 itemCount: _newsBlocks.length,
@@ -782,10 +807,16 @@ Future<void> _toggleScrap(NewsItem newsItem) async {
                 ),
                 itemBuilder: (context, index) {
                   final newsBlock = _newsBlocks[index];
-                  return NewsBlock(
-                    newsBlock: newsBlock,
-                    onToggleScrap: _toggleScrap,
-                  );
+                  final validNewsItems = newsBlock.newsItems.where((item) => item.isValid).toList();
+
+                  if (validNewsItems.isNotEmpty) {
+                    return NewsBlock(
+                      newsBlock: newsBlock.copyWith(newsItems: validNewsItems),
+                      onToggleScrap: _toggleScrap,
+                    );
+                  } else {
+                    return const SizedBox.shrink();
+                  }
                 },
               ),
             ),
@@ -930,6 +961,7 @@ class NewsItem {
   final String time;
   final DateTime date;
   final bool isScrapped;
+  final bool isValid;
 
   NewsItem({
     required this.id,
@@ -938,6 +970,7 @@ class NewsItem {
     required this.date,
     required this.isScrapped,
     required this.time,
+    required this.isValid,
   });
 
   NewsItem copyWith({
@@ -947,6 +980,7 @@ class NewsItem {
     String? time,
     DateTime? date,
     bool? isScrapped,
+    bool? isValid,
   }) {
     return NewsItem(
       id: id ?? this.id,
@@ -955,6 +989,7 @@ class NewsItem {
       time: time ?? this.time,
       date: date ?? this.date,
       isScrapped: isScrapped ?? this.isScrapped,
+      isValid: isValid ?? this.isValid,
     );
   }
 }

@@ -4,6 +4,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+late String userid;
+late String userpassword;
+
 Future<void> _newssave(String newsurl) async {
   final saveUrl = Uri.http('127.0.0.1:8080', newsurl);
   final client = http.Client();
@@ -24,19 +27,32 @@ Future<void> _newssave(String newsurl) async {
   }
 }
 
+Future<void> ai_filter() async {
+  final filterUrl = Uri.http('127.0.0.1:8080', '/ai_filter', {
+    'id': userid,
+    'password': userpassword,
+  });
+  final response = await http.get(filterUrl);
+}
+
 void _refreshData() async {
   await _newssave('/korea_news_save');
   await _newssave('/world_news_save');
   await _newssave('/economy_news_save');
-  final filter = Uri.http('127.0.0.1:8080', '/ai_filter');
-  final response = await http.get(filter);
+  await ai_filter();
+}
+
+void _allnewssave() async {
+  await _newssave('/korea_news_save');
+  await _newssave('/world_news_save');
+  await _newssave('/economy_news_save');
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
-  _refreshData();
   runApp(const MyApp());
+  _allnewssave();
 }
 
 class MyApp extends StatelessWidget {
@@ -47,7 +63,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Login App',
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA), // 여기에 배경색 설정
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA), 
         primarySwatch: Colors.blue,
       ),
       home: const Login(),
@@ -83,10 +99,13 @@ class _LoginState extends State<Login> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
+          userid = id;
+          userpassword = password;
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const HomeScreen()),
           );
+            ai_filter();
         } else {
           ScaffoldMessenger.of(
             context,
@@ -293,6 +312,10 @@ class _RegisterPageState extends State<RegisterPage> {
         "이름": _fullNameController.text,
         "아이디": _emailController.text,
         "비밀번호": _passwordController.text,
+        "키워드": [],
+        "뉴스사": [],
+        "뉴스 성향": ["중도"],
+        "뉴스 주제": ["국내 정치", "해외", "경제"],
       };
 
       final url = Uri.http('127.0.0.1:8080', '/register');
@@ -1321,15 +1344,6 @@ class _NewsTopicSectionState extends State<_NewsTopicSection> {
     '해외 축구',
     '테크',
     '게임',
-    '-----',
-    '중앙일보',
-    '동아일보',
-    '조선일보',
-    '매일경제',
-    '한국경제',
-    '서울경제',
-    '머니투데이',
-    '아시아경제',
   ];
 
   @override
@@ -1392,9 +1406,73 @@ class _KeywordSection extends StatefulWidget {
 }
 
 class _KeywordSectionState extends State<_KeywordSection> {
+  final String id = userid;
+  final String password = userpassword;
   final TextEditingController _controller = TextEditingController();
-  final List<String> _keywords = ['달러', '금리', '부동산'];
+
+  List<String> _keywords = [];
   bool _isExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKeywords();
+  }
+
+  Future<void> _loadKeywords() async {
+    final uri = Uri.http('127.0.0.1:8080', '/keyword', {
+      'id': id,
+      'password': password,
+    });
+
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        _keywords = List<String>.from(data['keyword'] ?? []);
+      });
+    }
+  }
+
+  Future<void> _addKeyword() async {
+    final keyword = _controller.text.trim();
+    if (keyword.isEmpty || _keywords.contains(keyword)) return;
+
+    final response = await http.post(
+      Uri.http('127.0.0.1:8080', '/addkeyword'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'id': id,
+        'password': password,
+        'keyword': keyword,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _keywords.add(keyword);
+        _controller.clear();
+      });
+    }
+  }
+
+  Future<void> _removeKeyword(String keyword) async {
+    final response = await http.post(
+      Uri.http('127.0.0.1:8080', '/deletekeyword'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'id': id,
+        'password': password,
+        'keyword': keyword,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+    _keywords = _keywords.where((k) => k != keyword).toList();
+  });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1490,17 +1568,6 @@ class _KeywordSectionState extends State<_KeywordSection> {
       onDeleted: () => _removeKeyword(text),
       deleteIcon: const Icon(Icons.close, size: 18),
     );
-  }
-
-  void _addKeyword() {
-    if (_controller.text.isNotEmpty && !_keywords.contains(_controller.text)) {
-      setState(() => _keywords.add(_controller.text));
-      _controller.clear();
-    }
-  }
-
-  void _removeKeyword(String text) {
-    setState(() => _keywords.remove(text));
   }
 }
 
@@ -1637,16 +1704,14 @@ class _ScrapTabWidgetState extends State<ScrapTabWidget> {
       'summary': cleanTitle(item.summary),
       'isScrapped': item.isScrapped ? 1 : 0,
     });
-    print('보내는 JSON: $body');
-    print('스크랩 상태: ${item.isScrapped}');
+
     try {
       final response = await http.post(
         newsUrl,
         headers: {'Content-Type': 'application/json'},
         body: body,
       );
-      print('응답 상태코드: ${response.statusCode}');
-      print('응답 내용: ${response.body}');
+
       if (response.statusCode == 200) {
         await _fetchScrappedNews();
       } else {

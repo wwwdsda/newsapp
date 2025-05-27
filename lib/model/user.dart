@@ -1,19 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-<<<<<<< HEAD
-=======
 import 'package:http/http.dart' as http;
->>>>>>> d4f5acb46ace0e5e8441c851ed6d87651df0719a
 import 'dart:convert';
-import 'screens/login_screen.dart';
-import 'service/api_service.dart';
-
-void _allNewsSave() async {
-  await ApiService.saveNews('/korea_news_save');
-  await ApiService.saveNews('/world_news_save');
-  await ApiService.saveNews('/economy_news_save');
-}
 
 late String userid;
 late String userpassword;
@@ -63,11 +52,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR', null);
   runApp(const MyApp());
-<<<<<<< HEAD
-  _allNewsSave();
-=======
   _allnewssave();
->>>>>>> d4f5acb46ace0e5e8441c851ed6d87651df0719a
 }
 
 class MyApp extends StatelessWidget {
@@ -81,17 +66,11 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF8F9FA), 
         primarySwatch: Colors.blue,
       ),
-<<<<<<< HEAD
-      home: const LoginScreen(),
-=======
       home: const Login(),
->>>>>>> d4f5acb46ace0e5e8441c851ed6d87651df0719a
     );
   }
 }
 
-<<<<<<< HEAD
-=======
 class Login extends StatefulWidget {
   const Login({Key? key}) : super(key: key);
 
@@ -1935,4 +1914,3 @@ class SummeryPopup extends StatelessWidget {
 String cleanTitle(String title) {
   return title.replaceAll('\n', '').replaceAll('\"', '').trim();
 }
->>>>>>> d4f5acb46ace0e5e8441c851ed6d87651df0719a

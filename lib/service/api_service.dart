@@ -11,6 +11,10 @@ import '../widgets/news_bias_section.dart';
 class ApiService {
   static const String _baseUrl = '127.0.0.1:8080';
 
+  static String cleanTitle(String title) {
+  return title.replaceAll('\n', '').replaceAll('\"', '').trim();
+}
+
   static Future<bool> login(String id, String password) async {
     final url = Uri.http(_baseUrl, '/login');
     final response = await http.post(
@@ -209,7 +213,52 @@ class ApiService {
     }
   }
 
-  static String cleanTitle(String title) {
-    return title.replaceAll('\n', '').replaceAll('\"', '').trim();
+  static Future<Set<String>> fetchUserBiases() async {
+    final url = Uri.http(_baseUrl, '/user_biases', {
+      'id': userid,
+      'password': userpassword,
+    });
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body)['biases'];
+      return data.cast<String>().toSet();
+    } else {
+      throw Exception('뉴스 성향 불러오기 실패');
+    }
   }
+
+static Future<void> addUserBias(String bias) async {
+  final url = Uri.http(_baseUrl, '/add_bias');
+  final response = await http.post(
+    url,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'id': userid,
+      'password': userpassword,
+      'bias': bias,  
+    }),
+  );
+  if (response.statusCode != 200) {
+    throw Exception('뉴스 성향 추가 실패: ${response.statusCode}');
+  }
+}
+
+static Future<void> deleteUserBias(String bias) async {
+  final url = Uri.http(_baseUrl, '/delete_bias');
+  final response = await http.post( 
+    url,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'id': userid,
+      'password': userpassword,
+      'bias': bias,
+    }),
+  );
+  if (response.statusCode != 200) {
+    throw Exception('뉴스 성향 삭제 실패: ${response.statusCode}');
+  }
+}
+
+
 }

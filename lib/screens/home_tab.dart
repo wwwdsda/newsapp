@@ -21,11 +21,15 @@ class _HomeTabState extends State<HomeTab> {
   @override
   void initState() {
     super.initState();
+    _applyAiFilter(_currentDate);
     _loadNewsForDate(_currentDate);
   }
 
-  Future<void> _loadNewsForDate(DateTime date) async {
+  Future<void> _applyAiFilter(DateTime date) async {
     await ApiService.aiFilter();
+  }
+
+  Future<void> _loadNewsForDate(DateTime date) async {
     setState(() => _newsBlocks = []);
     final blocks = await ApiService.fetchNews(date);
     setState(() => _newsBlocks = blocks);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../utils/globals.dart';
 import '../model/news_item.dart';
+import '../service/api_service.dart';
 import '../widgets/news_bias_section.dart';
 import '../widgets/news_company_section.dart';
 import '../widgets/news_topic_section.dart';
@@ -14,13 +16,50 @@ class SettingsTab extends StatefulWidget {
 }
 
 class _SettingsTabState extends State<SettingsTab> {
-  Set<NewsBias> _selectedBiases = {};
+  final ApiService apiService = ApiService();
+
+  Set<String> _selectedBiases = {}; 
   Set<String> _selectedTopics = {};
 
-  void _updateBiases(Set<NewsBias> newBiases) {
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialBiases();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadInitialBiases();
+  }
+
+  Future<void> _loadInitialBiases() async {
+    try {
+      final fetched = await ApiService.fetchUserBiases();
+      setState(() {
+        _selectedBiases = fetched;
+      });
+    } catch (e) {
+      debugPrint('뉴스 성향 로딩 실패: $e');
+    }
+  }
+
+  void _updateBiases(Set<String> newBiases) {
+    final before = _selectedBiases;
+
     setState(() {
       _selectedBiases = newBiases;
     });
+
+    final added = newBiases.difference(before);
+    final removed = before.difference(newBiases);
+
+    for (final bias in added) {
+      ApiService.addUserBias(bias);
+    }
+    for (final bias in removed) {
+      ApiService.deleteUserBias(bias);
+    }
   }
 
   void _updateTopics(String topic, bool isSelected) {
@@ -37,10 +76,7 @@ class _SettingsTabState extends State<SettingsTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '설정',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
+        title: const Text('설정', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: false,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,

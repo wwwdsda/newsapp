@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 
+const List<String> allBiases = ['중도', '진보', '보수'];
+
 class NewsBiasSection extends StatefulWidget {
   final Set<String> selectedBiases;
   final ValueChanged<Set<String>> onBiasesChanged;
 
   const NewsBiasSection({
-    super.key,
+    Key? key,
     required this.selectedBiases,
     required this.onBiasesChanged,
-  });
+  }) : super(key: key);
 
   @override
-  State<NewsBiasSection> createState() => NewsBiasSectionState();
+  State<NewsBiasSection> createState() => _NewsBiasSectionState();
 }
 
-class NewsBiasSectionState extends State<NewsBiasSection> {
+class _NewsBiasSectionState extends State<NewsBiasSection> {
   late Set<String> _selectedBiases;
 
   @override
@@ -59,14 +61,16 @@ class NewsBiasSectionState extends State<NewsBiasSection> {
                 final isSelected = _selectedBiases.contains(bias);
                 return ChoiceChip(
                   backgroundColor: const Color(0xFFF8F9FA),
-                  label: Text(bias),
+                  label: Text(
+                    bias,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : const Color(0xFF868E96),
+                    ),
+                  ),
                   selected: isSelected,
                   selectedColor: const Color(0xFF228BE6),
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF868E96),
-                  ),
                   avatar: isSelected
-                      ? const Icon(Icons.check, color: Colors.white)
+                      ? const Icon(Icons.check, color: Colors.white, size: 18)
                       : null,
                   onSelected: (_) {
                     setState(() {
@@ -75,8 +79,8 @@ class NewsBiasSectionState extends State<NewsBiasSection> {
                       } else {
                         _selectedBiases.add(bias);
                       }
-                      widget.onBiasesChanged(_selectedBiases);
                     });
+                    widget.onBiasesChanged(_selectedBiases.toSet());
                   },
                 );
               }).toList(),
@@ -87,5 +91,3 @@ class NewsBiasSectionState extends State<NewsBiasSection> {
     );
   }
 }
-
-const List<String> allBiases = ['중도', '진보', '보수'];

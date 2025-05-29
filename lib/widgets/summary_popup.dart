@@ -20,6 +20,7 @@ class SummeryPopup extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Card(
+                color: const Color(0xFFF8F9FA), 
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

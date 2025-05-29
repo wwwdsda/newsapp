@@ -4,7 +4,7 @@ import '../utils/globals.dart';
 class NewsItem {
   final String category;
   final String title;
-  final String summary;
+  String? summary; 
   final String time;
   final DateTime date;
   final bool isScrapped;

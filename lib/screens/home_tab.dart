@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert'; 
 
 import 'side_menu.dart';
 import '../model/news_item.dart';
@@ -8,47 +7,85 @@ import '../widgets/news_block_widget.dart';
 import '../service/api_service.dart';
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({Key? key}) : super(key: key);
+  final bool runAiFilterOnStart;
+  const HomeTab({Key? key, this.runAiFilterOnStart = false}) : super(key: key);
 
   @override
-  State<HomeTab> createState() => _HomeTabState();
+  HomeTabState createState() => HomeTabState();
 }
 
-class _HomeTabState extends State<HomeTab> {
+class HomeTabState extends State<HomeTab> with AutomaticKeepAliveClientMixin {
   DateTime _currentDate = DateTime.now();
   List<NewsBlockData> _newsBlocks = [];
+  Set<String> _selectedTopics = {};
+  bool _loading = true;
+  bool _aiFiltering = false;
 
-@override
-void initState() {
-  super.initState();
-  _initializeNews(); 
-}
+  @override
+  bool get wantKeepAlive => true;
 
-Future<void> _initializeNews() async {
-  await _loadNewsForDate(_currentDate);
-  if (!mounted) return;
-  await _applyAiFilter(_currentDate);
-  if (!mounted) return;
-  await _loadNewsForDate(_currentDate);
-}
+  @override
+  void initState() {
+    super.initState();
+    _initializeAll();
+  }
 
-  Future<void> _applyAiFilter(DateTime date) async {
+  Future<void> _initializeAll() async {
+    await _loadUserTopics();
+    if (widget.runAiFilterOnStart) {
+      await _runAiFilterAndNews();
+    } else {
+      await _loadNewsForDate(_currentDate);
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _runAiFilterAndNews() async {
+    if (mounted) setState(() => _aiFiltering = false);
+    await _loadNewsForDate(_currentDate);
+    if (mounted) setState(() => _aiFiltering = true);
     await ApiService.refreshData();
+    if (mounted) setState(() => _aiFiltering = false);
+    await _loadNewsForDate(_currentDate);
+  }
+
+  Future<void> _loadUserTopics() async {
+    try {
+      final topics = await ApiService.fetchUserTopics();
+      if (mounted) setState(() {
+        _selectedTopics = topics;
+      });
+    } catch (e) {
+      debugPrint('주제 불러오기 실패: $e');
+      if (mounted) setState(() {
+        _selectedTopics = {};
+      });
+    }
   }
 
   Future<void> _loadNewsForDate(DateTime date) async {
     if (!mounted) return;
-
     setState(() => _newsBlocks = []);
     final blocks = await ApiService.fetchNews(date);
+
+    final filteredBlocks = blocks
+        .where((block) => _selectedTopics.contains(block.title))
+        .toList();
+
     if (!mounted) return;
-    setState(() => _newsBlocks = blocks);
+    setState(() => _newsBlocks = filteredBlocks);
+  }
+
+  Future<void> _refreshData() async {
+    if (mounted) setState(() => _aiFiltering = true);
+    await ApiService.refreshData();
+    if (mounted) setState(() => _aiFiltering = false);
+    await _loadNewsForDate(_currentDate);
   }
 
   Future<void> _toggleScrap(NewsItem newsItem) async {
     final success = await ApiService.toggleScrap(newsItem);
-    if (success) {
-      if (!mounted) return;
+    if (success && mounted) {
       setState(() {
         _newsBlocks = _newsBlocks.map((block) {
           if (block.title != newsItem.category) return block;
@@ -71,29 +108,28 @@ Future<void> _initializeNews() async {
     _loadNewsForDate(_currentDate);
   }
 
- void _openMenu() {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        insetPadding: EdgeInsets.zero,
-        backgroundColor: Colors.transparent,
-        child: SideMenuButton(),
-      );
-    },
-  );
-}
+  void _openMenu() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          insetPadding: EdgeInsets.zero,
+          backgroundColor: Colors.transparent,
+          child: SideMenuButton(),
+        );
+      },
+    );
+  }
 
-
-  void _refreshData() {
+  // public 메서드로 변경 (SettingsTab에서 호출)
+  void onTopicsChanged(Set<String> newTopics) {
+    setState(() => _selectedTopics = newTopics);
     _loadNewsForDate(_currentDate);
   }
-  @override
-  void dispose() {
-    super.dispose();
-  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -125,30 +161,41 @@ Future<void> _initializeNews() async {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async => _refreshData(),
-              child: ListView.separated(
-                itemCount: _newsBlocks.length,
-                separatorBuilder: (context, index) => const Divider(height: 20),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                itemBuilder: (context, index) {
-                  final newsBlock = _newsBlocks[index];
-                  final validItems = newsBlock.newsItems.where((item) => item.isValid).toList();
-                  if (validItems.isNotEmpty) {
-                    return NewsBlock(
-                      newsBlock: newsBlock.copyWith(newsItems: validItems),
-                      onToggleScrap: _toggleScrap,
-                    );
-                  } else {
-                    return const SizedBox.shrink();
-                  }
-                },
+          Column(
+            children: [
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refreshData,
+                  child: ListView.separated(
+                    itemCount: _newsBlocks.length,
+                    separatorBuilder: (context, index) => const Divider(height: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    itemBuilder: (context, index) {
+                      final newsBlock = _newsBlocks[index];
+                      final validItems = newsBlock.newsItems.where((item) => item.isValid).toList();
+                      if (validItems.isNotEmpty) {
+                        return NewsBlock(
+                          newsBlock: newsBlock.copyWith(newsItems: validItems),
+                          onToggleScrap: _toggleScrap,
+                        );
+                      } else {
+                        return const SizedBox.shrink();
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_loading || _aiFiltering)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(),
               ),
             ),
-          ),
         ],
       ),
     );

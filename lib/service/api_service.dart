@@ -30,6 +30,9 @@ class ApiService {
     await saveNews('/korea_news_save');
     await saveNews('/world_news_save');
     await saveNews('/economy_news_save');
+    await saveNews('/tech_news_save');
+    await saveNews('/entertainment_news_save');
+    await saveNews('/sport_news_save');
     await aiFilter();
   }
 
@@ -37,6 +40,9 @@ class ApiService {
     await saveNews('/korea_news_save');
     await saveNews('/world_news_save');
     await saveNews('/economy_news_save');
+    await saveNews('/tech_news_save');
+    await saveNews('/entertainment_news_save');
+    await saveNews('/sport_news_save');
   }
 
   static Future<void> saveNews(String endpoint) async {
@@ -156,7 +162,7 @@ class ApiService {
       'date': DateFormat('yyyy-MM-dd').format(newsItem.date),
       'category': newsItem.category,
       'title': cleanTitle(newsItem.title),
-      'summary': cleanTitle(newsItem.summary),
+      'summary': cleanTitle(newsItem.summary ?? ''),
     });
 
     try {
@@ -278,4 +284,95 @@ class ApiService {
       throw Exception('뉴스 성향 삭제 실패: ${response.statusCode}');
     }
   }
+    static Future<void> saveUserBias(Set<String> biases) async {
+    final url = Uri.http(_baseUrl, '/save_biases');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'id': userid,
+        'password': userpassword,
+        'biases': biases.toList(),
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('뉴스 주제 저장 실패: ${response.statusCode}');
+    }
+  }
+    static Future<Set<String>> fetchUserTopics() async {
+    final url = Uri.http(_baseUrl, '/user_topics', {
+      'id': userid,
+      'password': userpassword,
+    });
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final dynamic rawTopics = body['topics'];
+      if (rawTopics is List) {
+        return rawTopics.cast<String>().toSet();
+      } else {
+        return {};
+      }
+    } else {
+      throw Exception('뉴스 주제 불러오기 실패');
+    }
+  }
+
+  static Future<void> addUserTopic(String topic) async {
+    final url = Uri.http(_baseUrl, '/add_topic');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'id': userid, 'password': userpassword, 'topic': topic}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('뉴스 주제 추가 실패: ${response.statusCode}');
+    }
+  }
+
+  static Future<void> deleteUserTopic(String topic) async {
+    final url = Uri.http(_baseUrl, '/delete_topic');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'id': userid, 'password': userpassword, 'topic': topic}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('뉴스 주제 삭제 실패: ${response.statusCode}');
+    }
+  }
+
+  static Future<void> saveUserTopics(Set<String> topics) async {
+    final url = Uri.http(_baseUrl, '/save_topics');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'id': userid,
+        'password': userpassword,
+        'topics': topics.toList(),
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('뉴스 주제 저장 실패: ${response.statusCode}');
+    }
+  }
+static Future<String> fetchSummaryFromServer(String title) async {
+  final uri = Uri.http(_baseUrl, '/ai_summary');
+  final response = await http.post(
+    uri,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'title': title}),
+  );
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    return data['summary'] ?? '요약 실패';
+  } else {
+    return '요약 실패';
+  }
+}
+
+  
 }

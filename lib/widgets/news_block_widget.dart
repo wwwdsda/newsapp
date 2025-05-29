@@ -1,6 +1,8 @@
 import '../model/news_item.dart';
 import 'summary_popup.dart';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import '../service/api_service.dart';
 
 class NewsBlockData {
   final String title;
@@ -110,16 +112,44 @@ class NewsItemTile extends StatelessWidget {
   final NewsItem newsItem;
   final Function(NewsItem) onToggleScrap;
 
+Future<String> _getSummary(BuildContext context) async {
+  final currentSummary = newsItem.summary ?? '';
+  if (currentSummary.startsWith('https://news.google.com')) {
+    final fetchedSummary = await ApiService.fetchSummaryFromServer(newsItem.title);
+    newsItem.summary = fetchedSummary;
+    return fetchedSummary;
+  } else {
+    return currentSummary;
+  }
+}
+
+
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
+        final future = _getSummary(context);
         showDialog(
           context: context,
           builder: (BuildContext context) {
-            return SummeryPopup(
-              title: newsItem.title,
-              content: newsItem.summary ?? '',
+            return FutureBuilder<String>(
+              future: future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return SummeryPopup(
+                    title: newsItem.title,
+                    content: '요약을 불러오는 중 오류가 발생했습니다: ${snapshot.error}',
+                  );
+                }
+                return SummeryPopup(
+                  title: newsItem.title,
+                  content: snapshot.data ?? '요약을 불러올 수 없습니다.',
+                );
+              },
             );
           },
         );

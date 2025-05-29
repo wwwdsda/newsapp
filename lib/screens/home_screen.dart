@@ -3,9 +3,9 @@ import 'home_tab.dart';
 import 'scrap_tab.dart';
 import 'setting_tab.dart';
 
-
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final bool runAiFilterOnStart;
+  const HomeScreen({Key? key, this.runAiFilterOnStart = false}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -13,13 +13,28 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  final PageController _pageController = PageController(initialPage: 0);
+  late final PageController _pageController;
+  late final GlobalKey<HomeTabState> _homeTabKey;
+  late final List<Widget> _widgetOptions;
 
-  final List<Widget> _widgetOptions = <Widget>[
-    const HomeTab(),
-    const ScrapTab(),
-    const SettingsTab(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+    _homeTabKey = GlobalKey<HomeTabState>();
+    _widgetOptions = <Widget>[
+      HomeTab(
+        key: _homeTabKey,
+        runAiFilterOnStart: widget.runAiFilterOnStart,
+      ),
+      const ScrapTab(),
+      SettingsTab(
+        onTopicsChanged: (topics) {
+          _homeTabKey.currentState?.onTopicsChanged(topics);
+        },
+      ),
+    ];
+  }
 
   @override
   void dispose() {
@@ -44,10 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _openMenu() {
-    print('메뉴 열기');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,10 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: '홈'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bookmark_border),
-            label: '스크랩',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.bookmark_border), label: '스크랩'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정'),
         ],
         currentIndex: _selectedIndex,

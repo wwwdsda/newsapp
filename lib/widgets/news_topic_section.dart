@@ -16,17 +16,14 @@ class NewsTopicSection extends StatefulWidget {
 
 class NewsTopicSectionState extends State<NewsTopicSection> {
   final List<String> allTopics = [
-    '국내 정치, 사회',
-    '미국',
-    '중국, 대만',
-    '유럽',
-    '한국 경제',
-    '연예',
-    '건강',
+    '국내',
+    '해외',
+    '경제',
+    '기술',
+    '엔터테인먼트',
     '스포츠',
-    '해외 축구',
-    '테크',
-    '게임',
+    '건강',
+    '과학',
   ];
 
   @override

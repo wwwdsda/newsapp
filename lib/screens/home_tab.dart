@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert'; 
 
+import 'side_menu.dart';
 import '../model/news_item.dart';
 import '../widgets/news_block_widget.dart';
 import '../service/api_service.dart';
@@ -17,27 +18,36 @@ class _HomeTabState extends State<HomeTab> {
   DateTime _currentDate = DateTime.now();
   List<NewsBlockData> _newsBlocks = [];
 
+@override
+void initState() {
+  super.initState();
+  _initializeNews(); 
+}
 
-  @override
-  void initState() {
-    super.initState();
-    _applyAiFilter(_currentDate);
-    _loadNewsForDate(_currentDate);
-  }
+Future<void> _initializeNews() async {
+  await _loadNewsForDate(_currentDate);
+  if (!mounted) return;
+  await _applyAiFilter(_currentDate);
+  if (!mounted) return;
+  await _loadNewsForDate(_currentDate);
+}
 
   Future<void> _applyAiFilter(DateTime date) async {
-    await ApiService.aiFilter();
+    await ApiService.refreshData();
   }
 
   Future<void> _loadNewsForDate(DateTime date) async {
+    if (!mounted) return;
     setState(() => _newsBlocks = []);
     final blocks = await ApiService.fetchNews(date);
+    if (!mounted) return;
     setState(() => _newsBlocks = blocks);
   }
 
   Future<void> _toggleScrap(NewsItem newsItem) async {
     final success = await ApiService.toggleScrap(newsItem);
     if (success) {
+      if (!mounted) return;
       setState(() {
         _newsBlocks = _newsBlocks.map((block) {
           if (block.title != newsItem.category) return block;
@@ -55,18 +65,32 @@ class _HomeTabState extends State<HomeTab> {
     final newDate = _currentDate.add(Duration(days: amount));
     final today = DateTime.now();
     if (newDate.isAfter(DateTime(today.year, today.month, today.day + 1))) return;
+    if (!mounted) return;
     setState(() => _currentDate = newDate);
     _loadNewsForDate(_currentDate);
   }
 
-  void _openMenu() {
-    print('Opening menu...');
-  }
+ void _openMenu() {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.transparent,
+        child: SideMenuButton(),
+      );
+    },
+  );
+}
+
 
   void _refreshData() {
     _loadNewsForDate(_currentDate);
   }
-
+  @override
+  void dispose() {
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(

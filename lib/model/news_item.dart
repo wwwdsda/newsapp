@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/globals.dart';
 
 class NewsItem {
   final String category;
@@ -20,12 +21,17 @@ class NewsItem {
   });
 
   factory NewsItem.fromJson(Map<String, dynamic> json) {
+    final rawIsScrapped = json['isScrapped'];
+    final List<dynamic> isScrappedList = (rawIsScrapped is List)
+        ? rawIsScrapped
+        : <dynamic>[];
+    final bool isScrapped = isScrappedList.contains(userid);
     return NewsItem(
       title: json['title'] ?? '',
       summary: json['summary'] ?? '',
       date: DateTime.parse(json['date']),
       category: json['category'] ?? '',
-      isScrapped: json['isScrapped'] == 1 || json['isScrapped'] == true,
+      isScrapped: isScrapped,
       time: json['time'] ?? '',
       isValid: json['isValid'] ?? false,
     );

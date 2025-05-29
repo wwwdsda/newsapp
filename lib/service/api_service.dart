@@ -15,6 +15,7 @@ class ApiService {
   return title.replaceAll('\n', '').replaceAll('\"', '').trim();
 }
 
+
   static Future<bool> login(String id, String password) async {
     final url = Uri.http(_baseUrl, '/login');
     final response = await http.post(
@@ -25,6 +26,19 @@ class ApiService {
     return response.statusCode == 200 &&
         jsonDecode(response.body)['success'] == true;
   }
+
+static Future<void> refreshData() async {
+  await saveNews('/korea_news_save');
+  await saveNews('/world_news_save');
+  await saveNews('/economy_news_save');
+  await aiFilter();
+}
+
+static Future<void> allnewssave() async {
+  await saveNews('/korea_news_save');
+  await saveNews('/world_news_save');
+  await saveNews('/economy_news_save');
+}
 
   static Future<void> saveNews(String endpoint) async {
     final url = Uri.http(_baseUrl, endpoint);
@@ -48,58 +62,55 @@ class ApiService {
   }
 
   static Future<List<NewsBlockData>> fetchNews(DateTime date) async {
-    final formatted = DateFormat('yyyy-MM-dd').format(date);
-    final url = Uri.http(_baseUrl, '/news', {'date': formatted});
-    final response = await http.get(url);
+  final formatted = DateFormat('yyyy-MM-dd').format(date);
+  final url = Uri.http(_baseUrl, '/news', {'date': formatted});
+  final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['success'] == true && data['news'] != null) {
-        final Map<String, dynamic> newsMap = Map<String, dynamic>.from(
-          data['news'],
-        );
-        final List<NewsBlockData> blocks = [];
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    if (data['success'] == true && data['news'] != null) {
+      final Map<String, dynamic> newsMap = Map<String, dynamic>.from(data['news']);
+      final List<NewsBlockData> blocks = [];
 
-        for (final entry in newsMap.entries) {
-          final String category = entry.key;
-          final List<dynamic> items = entry.value;
+      for (final entry in newsMap.entries) {
+        final String category = entry.key;
+        final List<dynamic> items = entry.value;
 
-          final List<NewsItem> newsItems =
-              items.map((item) {
-                final String title = item['title'];
-                final String summary = item['summary'];
-                final String time = item['time'];
-                final bool isValid = item['isValid'];
-                final dynamic isScrappedValue = item['isScrapped'];
-                final bool isScrapped =
-                    isScrappedValue == 1 || isScrappedValue == true;
+        final List<NewsItem> newsItems = items.map((item) {
+          final String title = item['title'];
+          final String summary = item['summary'];
+          final String time = item['time'];
+          final bool isValid = item['isValid'];
+          final isScrappedRaw = item['isScrapped'];
+          final isScrappedList = (isScrappedRaw is List)
+              ? List<String>.from(isScrappedRaw)
+              : <String>[];
+          final bool isScrapped = isScrappedList.contains(userid);
 
-                final timeParts = time.split(':');
-                final String timeHM =
-                    timeParts.length >= 2
-                        ? '${timeParts[0]}:${timeParts[1]}'
-                        : time;
+          final timeParts = time.split(':');
+          final String timeHM =
+              timeParts.length >= 2 ? '${timeParts[0]}:${timeParts[1]}' : time;
 
-                return NewsItem(
-                  category: category,
-                  title: title,
-                  summary: summary,
-                  date: date,
-                  isScrapped: isScrapped,
-                  isValid: isValid,
-                  time: timeHM,
-                );
-              }).toList();
+          return NewsItem(
+            category: category,
+            title: title,
+            summary: summary,
+            date: date,
+            isScrapped: isScrapped,
+            isValid: isValid,
+            time: timeHM,
+          );
+        }).toList();
 
-          blocks.add(NewsBlockData(title: category, newsItems: newsItems));
-        }
-
-        return blocks;
+        blocks.add(NewsBlockData(title: category, newsItems: newsItems));
       }
-    }
 
-    return [];
+      return blocks;
+    }
   }
+
+  return [];
+}
 
   static Future<Map<String, dynamic>> registerUser({
     required String fullName,
@@ -136,6 +147,7 @@ class ApiService {
   static Future<bool> toggleScrap(NewsItem newsItem) async {
     final url = Uri.http(_baseUrl, '/scrap');
     final body = jsonEncode({
+      'userid': userid,
       'date': DateFormat('yyyy-MM-dd').format(newsItem.date),
       'category': newsItem.category,
       'title': cleanTitle(newsItem.title),
@@ -155,17 +167,21 @@ class ApiService {
     }
   }
 
-  static Future<List<NewsItem>> fetchScrappedNews() async {
-    final url = Uri.http(_baseUrl, '/bring_scrap');
-    final response = await http.get(url);
+ static Future<List<NewsItem>> fetchScrappedNews() async {
+  final url = Uri.http(_baseUrl, '/bring_scrap');
+  final response = await http.post(
+    url,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'userid': userid}),
+  );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((e) => NewsItem.fromJson(e)).toList();
-    } else {
-      throw Exception('스크랩 뉴스 불러오기 실패: ${response.statusCode}');
-    }
+  if (response.statusCode == 200) {
+    final List<dynamic> data = jsonDecode(response.body);
+    return data.map((e) => NewsItem.fromJson(e)).toList();
+  } else {
+    throw Exception('스크랩 뉴스 불러오기 실패: ${response.statusCode}');
   }
+}
 
   static Future<bool> addKeyword({
     required String id,
@@ -213,20 +229,28 @@ class ApiService {
     }
   }
 
-  static Future<Set<String>> fetchUserBiases() async {
-    final url = Uri.http(_baseUrl, '/user_biases', {
-      'id': userid,
-      'password': userpassword,
-    });
-    final response = await http.get(url);
+static Future<Set<String>> fetchUserBiases() async {
+  final url = Uri.http(_baseUrl, '/user_biases', {
+    'id': userid,
+    'password': userpassword,
+  });
+  final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body)['biases'];
-      return data.cast<String>().toSet();
+  if (response.statusCode == 200) {
+    final body = jsonDecode(response.body);
+    final dynamic rawBiases = body['biases'];
+
+    if (rawBiases is List) {
+      return rawBiases.cast<String>().toSet();
     } else {
-      throw Exception('뉴스 성향 불러오기 실패');
+      return {};
     }
+  } else {
+    throw Exception('뉴스 성향 불러오기 실패');
   }
+}
+
+
 
 static Future<void> addUserBias(String bias) async {
   final url = Uri.http(_baseUrl, '/add_bias');

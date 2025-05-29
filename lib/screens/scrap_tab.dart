@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../model/news_item.dart';
 import '../service/api_service.dart';
 import '../widgets/news_block_widget.dart';
+import 'side_menu.dart';
 
 class ScrapTab extends StatefulWidget {
   const ScrapTab({Key? key}) : super(key: key);
@@ -64,8 +65,8 @@ class _ScrapTabState extends State<ScrapTab> {
 
   @override
   Widget build(BuildContext context) {
-    final dateKeys = _scrappedNews.keys.toList()
-      ..sort((a, b) => b.compareTo(a));
+    final dateKeys =
+        _scrappedNews.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
       appBar: AppBar(
@@ -90,80 +91,95 @@ class _ScrapTabState extends State<ScrapTab> {
           ),
         ],
       ),
-      body: _scrappedNews.isEmpty
-          ? const Center(child: Text('스크랩한 뉴스가 없습니다'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: dateKeys.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final date = dateKeys[index];
-                final items = _scrappedNews[date]!;
-                final isExpanded = _expandedDates[date] ?? false;
+      body:
+          _scrappedNews.isEmpty
+              ? const Center(child: Text('스크랩한 뉴스가 없습니다'))
+              : ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: dateKeys.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final date = dateKeys[index];
+                  final items = _scrappedNews[date]!;
+                  final isExpanded = _expandedDates[date] ?? false;
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              DateFormat('yyyy년 MM월 dd일 (E)', 'ko_KR')
-                                  .format(DateTime.parse(date)),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                isExpanded
-                                    ? Icons.arrow_drop_up
-                                    : Icons.arrow_drop_down,
-                              ),
-                              onPressed: () => _toggleDateExpansion(date),
-                            ),
-                          ],
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 300),
-                        child: isExpanded
-                            ? Column(
-                                children: items
-                                    .map(
-                                      (item) => NewsItemTile(
-                                        newsItem: item,
-                                        onToggleScrap: _handleScrapToggle,
-                                      ),
-                                    )
-                                    .toList(),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                DateFormat(
+                                  'yyyy년 MM월 dd일 (E)',
+                                  'ko_KR',
+                                ).format(DateTime.parse(date)),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  isExpanded
+                                      ? Icons.arrow_drop_up
+                                      : Icons.arrow_drop_down,
+                                ),
+                                onPressed: () => _toggleDateExpansion(date),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 300),
+                          child:
+                              isExpanded
+                                  ? Column(
+                                    children:
+                                        items
+                                            .map(
+                                              (item) => NewsItemTile(
+                                                newsItem: item,
+                                                onToggleScrap:
+                                                    _handleScrapToggle,
+                                              ),
+                                            )
+                                            .toList(),
+                                  )
+                                  : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
     );
   }
 
   void _openMenu() {
-    print('Opening menu from ScrapTab...');
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          insetPadding: EdgeInsets.zero,
+          backgroundColor: Colors.transparent,
+          child: SideMenuButton(),
+        );
+      },
+    );
   }
 }

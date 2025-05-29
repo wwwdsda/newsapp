@@ -2,7 +2,6 @@ import '../model/news_item.dart';
 import 'summary_popup.dart';
 import 'package:flutter/material.dart';
 
-
 class NewsBlockData {
   final String title;
   final List<NewsItem> newsItems;
@@ -164,4 +163,3 @@ class NewsItemTile extends StatelessWidget {
     );
   }
 }
-

@@ -4,7 +4,6 @@ import '../utils/globals.dart';
 import '../model/news_item.dart';
 import '../service/api_service.dart';
 import '../widgets/news_bias_section.dart';
-import '../widgets/news_company_section.dart';
 import '../widgets/news_topic_section.dart';
 import '../widgets/keyword_section.dart';
 
@@ -18,7 +17,7 @@ class SettingsTab extends StatefulWidget {
 class _SettingsTabState extends State<SettingsTab> {
   final ApiService apiService = ApiService();
 
-  Set<String> _selectedBiases = {}; 
+  Set<String> _selectedBiases = {};
   Set<String> _selectedTopics = {};
 
   @override
@@ -89,8 +88,6 @@ class _SettingsTabState extends State<SettingsTab> {
             selectedBiases: _selectedBiases,
             onBiasesChanged: _updateBiases,
           ),
-          const SizedBox(height: 24),
-          const NewsCompanySection(),
           const SizedBox(height: 24),
           NewsTopicSection(
             selectedTopics: _selectedTopics,

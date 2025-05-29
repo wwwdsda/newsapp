@@ -38,6 +38,7 @@ Future<void> _initializeNews() async {
 
   Future<void> _loadNewsForDate(DateTime date) async {
     if (!mounted) return;
+
     setState(() => _newsBlocks = []);
     final blocks = await ApiService.fetchNews(date);
     if (!mounted) return;

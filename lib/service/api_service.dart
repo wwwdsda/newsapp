@@ -9,14 +9,17 @@ import '../utils/globals.dart';
 import '../widgets/news_bias_section.dart';
 
 class ApiService {
-  static const String _baseUrl = '127.0.0.1:8080';
+  static const String _authUrl = '127.0.0.1:8081';
+  static const String _userUrl = '127.0.0.1:8083';
+  static const String _newsUrl = '127.0.0.1:8084';
+  static const String _filterUrl = '127.0.0.1:8082';
 
   static String cleanTitle(String title) {
     return title.replaceAll('\n', '').replaceAll('\"', '').trim();
   }
 
   static Future<bool> login(String id, String password) async {
-    final url = Uri.http(_baseUrl, '/login');
+    final url = Uri.http(_authUrl, '/login');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -46,7 +49,7 @@ class ApiService {
   }
 
   static Future<void> saveNews(String endpoint) async {
-    final url = Uri.http(_baseUrl, endpoint);
+    final url = Uri.http(_newsUrl, endpoint);
     final response = await http.get(url);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -59,7 +62,7 @@ class ApiService {
   }
 
   static Future<void> aiFilter() async {
-    final filterUrl = Uri.http(_baseUrl, '/ai_filter', {
+    final filterUrl = Uri.http(_filterUrl, '/ai_filter', {
       'id': userid,
       'password': userpassword,
     });
@@ -68,7 +71,7 @@ class ApiService {
 
   static Future<List<NewsBlockData>> fetchNews(DateTime date) async {
     final formatted = DateFormat('yyyy-MM-dd').format(date);
-    final url = Uri.http(_baseUrl, '/news', {'date': formatted});
+    final url = Uri.http(_newsUrl, '/news', {'date': formatted});
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -138,7 +141,7 @@ class ApiService {
       "뉴스 주제": ["국내 정치", "해외", "경제"],
     };
 
-    final url = Uri.http(_baseUrl, '/register');
+    final url = Uri.http(_authUrl, '/register');
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode(userData);
 
@@ -156,7 +159,7 @@ class ApiService {
   }
 
   static Future<bool> toggleScrap(NewsItem newsItem) async {
-    final url = Uri.http(_baseUrl, '/scrap');
+    final url = Uri.http(_newsUrl, '/scrap');
     final body = jsonEncode({
       'userid': userid,
       'date': DateFormat('yyyy-MM-dd').format(newsItem.date),
@@ -179,7 +182,7 @@ class ApiService {
   }
 
   static Future<List<NewsItem>> fetchScrappedNews() async {
-    final url = Uri.http(_baseUrl, '/bring_scrap');
+    final url = Uri.http(_newsUrl, '/bring_scrap');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -199,7 +202,7 @@ class ApiService {
     required String password,
     required String keyword,
   }) async {
-    final url = Uri.http(_baseUrl, '/addkeyword');
+    final url = Uri.http(_userUrl, '/addkeyword');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -213,7 +216,7 @@ class ApiService {
     required String password,
     required String keyword,
   }) async {
-    final url = Uri.http(_baseUrl, '/deletekeyword');
+    final url = Uri.http(_userUrl, '/deletekeyword');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -226,7 +229,7 @@ class ApiService {
     required String id,
     required String password,
   }) async {
-    final url = Uri.http(_baseUrl, '/keyword', {
+    final url = Uri.http(_userUrl, '/keyword', {
       'id': id,
       'password': password,
     });
@@ -241,7 +244,7 @@ class ApiService {
   }
 
   static Future<Set<String>> fetchUserBiases() async {
-    final url = Uri.http(_baseUrl, '/user_biases', {
+    final url = Uri.http(_userUrl, '/user_biases', {
       'id': userid,
       'password': userpassword,
     });
@@ -262,7 +265,7 @@ class ApiService {
   }
 
   static Future<void> addUserBias(String bias) async {
-    final url = Uri.http(_baseUrl, '/add_bias');
+    final url = Uri.http(_userUrl, '/add_bias');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -274,7 +277,7 @@ class ApiService {
   }
 
   static Future<void> deleteUserBias(String bias) async {
-    final url = Uri.http(_baseUrl, '/delete_bias');
+    final url = Uri.http(_userUrl, '/delete_bias');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -284,8 +287,9 @@ class ApiService {
       throw Exception('뉴스 성향 삭제 실패: ${response.statusCode}');
     }
   }
-    static Future<void> saveUserBias(Set<String> biases) async {
-    final url = Uri.http(_baseUrl, '/save_biases');
+
+  static Future<void> saveUserBias(Set<String> biases) async {
+    final url = Uri.http(_userUrl, '/save_biases');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -299,8 +303,9 @@ class ApiService {
       throw Exception('뉴스 주제 저장 실패: ${response.statusCode}');
     }
   }
-    static Future<Set<String>> fetchUserTopics() async {
-    final url = Uri.http(_baseUrl, '/user_topics', {
+
+  static Future<Set<String>> fetchUserTopics() async {
+    final url = Uri.http(_userUrl, '/user_topics', {
       'id': userid,
       'password': userpassword,
     });
@@ -320,11 +325,15 @@ class ApiService {
   }
 
   static Future<void> addUserTopic(String topic) async {
-    final url = Uri.http(_baseUrl, '/add_topic');
+    final url = Uri.http(_userUrl, '/add_topic');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'id': userid, 'password': userpassword, 'topic': topic}),
+      body: jsonEncode({
+        'id': userid,
+        'password': userpassword,
+        'topic': topic,
+      }),
     );
     if (response.statusCode != 200) {
       throw Exception('뉴스 주제 추가 실패: ${response.statusCode}');
@@ -332,11 +341,15 @@ class ApiService {
   }
 
   static Future<void> deleteUserTopic(String topic) async {
-    final url = Uri.http(_baseUrl, '/delete_topic');
+    final url = Uri.http(_userUrl, '/delete_topic');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'id': userid, 'password': userpassword, 'topic': topic}),
+      body: jsonEncode({
+        'id': userid,
+        'password': userpassword,
+        'topic': topic,
+      }),
     );
     if (response.statusCode != 200) {
       throw Exception('뉴스 주제 삭제 실패: ${response.statusCode}');
@@ -344,7 +357,7 @@ class ApiService {
   }
 
   static Future<void> saveUserTopics(Set<String> topics) async {
-    final url = Uri.http(_baseUrl, '/save_topics');
+    final url = Uri.http(_userUrl, '/save_topics');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -358,21 +371,20 @@ class ApiService {
       throw Exception('뉴스 주제 저장 실패: ${response.statusCode}');
     }
   }
-static Future<String> fetchSummaryFromServer(String title) async {
-  final uri = Uri.http(_baseUrl, '/ai_summary');
-  final response = await http.post(
-    uri,
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({'title': title}),
-  );
 
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-    return data['summary'] ?? '요약 실패';
-  } else {
-    return '요약 실패';
+  static Future<String> fetchSummaryFromServer(String title) async {
+    final uri = Uri.http(_filterUrl, '/ai_summary');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'title': title}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['summary'] ?? '요약 실패';
+    } else {
+      return '요약 실패';
+    }
   }
-}
-
-  
 }
